@@ -44,6 +44,12 @@ contract ChicagoStaking is Ownable, ReentrancyGuard, Pausable {
 
     uint256 public globalTotalStaked;
 
+    /// @dev Enumerable list of every address that has ever staked, so
+    ///      off-chain consumers (e.g. a leaderboard) can read the full set
+    ///      of stakers directly from the contract instead of replaying logs.
+    address[] private _stakers;
+    mapping(address => bool) private _hasStaked;
+
     event Staked(
         address indexed staker,
         uint256 indexed stakeIndex,
@@ -78,6 +84,11 @@ contract ChicagoStaking is Ownable, ReentrancyGuard, Pausable {
         require(_isValidDuration(duration), "Invalid lock duration");
 
         clt.safeTransferFrom(msg.sender, address(this), amount);
+
+        if (!_hasStaked[msg.sender]) {
+            _hasStaked[msg.sender] = true;
+            _stakers.push(msg.sender);
+        }
 
         uint64 start = uint64(block.timestamp);
         uint64 end = uint64(block.timestamp + duration);
@@ -169,6 +180,28 @@ contract ChicagoStaking is Ownable, ReentrancyGuard, Pausable {
 
     function stakeCount(address staker) external view returns (uint256) {
         return _stakes[staker].length;
+    }
+
+    /// @notice Total number of unique addresses that have ever staked.
+    function stakersCount() external view returns (uint256) {
+        return _stakers.length;
+    }
+
+    /// @notice Paginated list of every staker address, for building a
+    ///         leaderboard directly from contract state (no log scanning).
+    function getStakers(uint256 offset, uint256 limit)
+        external
+        view
+        returns (address[] memory page)
+    {
+        uint256 total = _stakers.length;
+        if (offset >= total) return new address[](0);
+        uint256 end = offset + limit;
+        if (end > total) end = total;
+        page = new address[](end - offset);
+        for (uint256 i = offset; i < end; i++) {
+            page[i - offset] = _stakers[i];
+        }
     }
 
     function getActiveStakes(address staker)

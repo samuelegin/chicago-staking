@@ -20,12 +20,17 @@ File | Status |
 ## Deployments
 
 Network | Contract | Address |
-Ethereum Sepolia (testnet) | ChicagoStaking  `0x43436BA34Bab0040717A0b5698182e0C5019fc9c` 
-Ethereum Sepolia (testnet) | MockCLT (test only)`0xb0a75f1211B7e598FE23ce129eA4c010A3821ABb`
+Ethereum Sepolia (testnet) | ChicagoStaking | `0x473352Fa4A3A579A21e921d12736AeC5d239C315`
+Ethereum Sepolia (testnet) | MockCLT (test only) | `0x9b88bDF66905298B367D74Fa55A6A42CfC6bc82a`
 Ethereum Mainnet | CLT Token (existing) | `0xAE1e1b4D8f590371b77bEe27257ef038D4B835A1`
 
 Testnet verified on Etherscan Sepolia:
-https://sepolia.etherscan.io/address/0x43436BA34Bab0040717A0b5698182e0C5019fc9c#code
+https://sepolia.etherscan.io/address/0x473352Fa4A3A579A21e921d12736AeC5d239C315#code
+
+> Previous testnet deployment (`0x43436BA34Bab0040717A0b5698182e0C5019fc9c`) is retired — it had no way to
+> enumerate stakers on-chain, which meant the leaderboard could only be built by replaying event logs from
+> whatever block the backend last booted at, silently losing any stake made before a restart. See
+> "Staker Enumeration" below.
 
 ---
 
@@ -43,6 +48,17 @@ https://sepolia.etherscan.io/address/0x43436BA34Bab0040717A0b5698182e0C5019fc9c#
 Role | Capabilities |
 User | `stake()`, `withdraw()`, `withdrawAllMatured()` |
 Owner (Gnosis Safe) | `setMinStakeAmount()`, `pause()`, `unpause()`, `emergencyWithdrawFor()` |
+
+### Staker Enumeration
+
+Added `_stakers` (address array) + `stakersCount()` / `getStakers(offset, limit)`. Before this, there was
+no on-chain way to list "everyone who has staked" — only `totalStaked[address]`, a per-address lookup. The
+backend leaderboard needs the full set of stakers, not just one address at a time.
+
+The backend now syncs `user_stakes` by polling this directly (`stakersCount` → page through `getStakers` →
+`getStakes(address)` per staker) every 15s, instead of reconstructing state from `Staked` event logs. This
+is simpler and self-correcting: every poll reflects exactly what's on-chain right now, including
+withdrawals, with no block-range tracking or backfill step needed.
 
 ### Lock Durations
 

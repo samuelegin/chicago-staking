@@ -20,6 +20,9 @@ async function main() {
   if (hre.network.name === "mainnet") {
     cltAddress = CLT_MAINNET;
     console.log("Using mainnet CLT :", cltAddress);
+  } else if (process.env.SEPOLIA_CLT_ADDRESS) {
+    cltAddress = process.env.SEPOLIA_CLT_ADDRESS;
+    console.log("Using existing test CLT :", cltAddress);
   } else {
     console.log("Deploying MockERC20 (test CLT)...");
     const MockFactory = await hre.ethers.getContractFactory("MockERC20");
